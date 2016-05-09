@@ -29,9 +29,21 @@ if [ ! -f "$HOME/.ssh/github-key" ]; then
   ssh-keygen -t rsa -N '' -f "$HOME/.ssh/github-key" -C "$USER@lumoslabs"
 fi
 
-echo '----> Clone data-bags repo & install dependencies'
-git clone git@github.com:lumoslabs/chef-data-bags ~/workspace/chef-data-bags
-cd ~/workspace/chef-data-bags && bundle install
+if [ ! -d ~/workspace/chef-data-bags ]; then
+  echo '----> Clone data-bags repo & install dependencies'
+  git clone git@github.com:lumoslabs/chef-data-bags ~/workspace/chef-data-bags
+else
+  echo '----> Update data-bags repo'
+  pushd ~/workspace/chef-data-bags >/dev/null
+  git fetch --all
+  git merge --ff-only @{u}
+  popd >/dev/null
+fi
+pushd ~/workspace/chef-data-bags >/dev/null
+bundle install
+popd >/dev/null
+
+#TODO: add github-key to users github account?
 
 echo '----> Writing memory executable to bin/'
 tee ~/bin/memory <<EOF
@@ -73,3 +85,13 @@ knife[:aws_access_key_id]     = ENV['AWS_ACCESS_KEY_ID']
 knife[:aws_secret_access_key] = ENV['AWS_SECRET_ACCESS_KEY']
 knife[:region]                = 'us-east-1'
 EOF
+
+echo '----> Copy chef key files to ~/.chef'
+for file in memory.key validation.pem "$USER.pem"; do
+  #TODO: /var/chef may go away, check more places
+  cp /var/chef/tmp/$file $HOME/.chef/
+  rm -fr /var/chef/tmp/$file
+done
+
+echo '----> Create chef user'
+#FIXME: Matt is working on updating memory to accept files for creating data bags!
