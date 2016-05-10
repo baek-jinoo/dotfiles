@@ -3,8 +3,8 @@ set -e
 set -o pipefail
 
 RUBY_VERSION=2.1.6
-CHEF_BOOTSTRAP=12.4.9
-CHEF_BUNDLE='~> 12.4.0'
+CHEF_VERSION=12.9.41
+CHEF_BUNDLE='~> 12.9.41'
 
 FILE_VAULT=/var/chef/tmp
 USER=$(whoami)
@@ -13,6 +13,47 @@ USER=$(whoami)
 log() {
   echo "----> $*"
 }
+
+# Don't run as sudo
+if [[ $EUID -eq 0 ]]; then
+  echo "ERROR: Don't run as sudo"
+  exit 1
+fi
+
+log 'Creating ~/.bash_profile'
+tee ~/.bash_profile <<EOF
+if [ -f ~/.bashrc ]; then
+  . ~/.bashrc
+fi
+
+# Customizations can be placed into ~/.bash_profile_includes/ with a .sh extension
+for file in ~/.bash_profile_includes/*.sh; do
+  [[ -r $file ]] && source $file;
+done
+EOF
+chmod 644 ~/.bash_profile
+
+log 'Creating ~/.bash_profile_includes/defaults.sh'
+mkdir -p ~/.bash_profile_includes
+tee ~/.bash_profile_includes/defaults.sh <<EOF
+export PATH=$HOME/bin:/usr/local/bin:$PATH
+
+alias ll='ls -lhA'
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias reset_dns='sudo killall -HUP mDNSResponder'
+
+# alias over knife to make it faster
+alias knifef="BUNDLE_GEMFILE=~/workspace/dotfiles/Gemfile bundle exec knife"
+
+function knives() {
+  if [ -z "$2" ]
+  then knifef ssh "$1" "hostname" -x lumoslabs -a hostname | sort
+  else knifef ssh "$1" "$2" -x lumoslabs -a hostname | sort
+  fi
+}
+EOF
+chmod 755 ~/.bash_profile_includes/defaults.sh
 
 if ! xcode-select -p >/dev/null 2>&1; then
   log 'Install xcode command line tools (click "Install")'
@@ -68,10 +109,10 @@ if [ ! -f "$HOME/.ssh/github-key" ]; then
 fi
 
 if [ ! -d ~/workspace/chef-data-bags ]; then
-  echo '----> Clone data-bags repo & install dependencies'
+  echo '----> Cloning data-bags repo & install dependencies'
   git clone git@github.com:lumoslabs/chef-data-bags ~/workspace/chef-data-bags
 else
-  echo '----> Update data-bags repo'
+  echo '----> Updating data-bags repo'
   pushd ~/workspace/chef-data-bags >/dev/null
   git fetch --all
   git merge --ff-only @{u}
@@ -117,7 +158,7 @@ verify_api_cert          false
 versioned_cookbooks      true
 
 knife[:editor]                = 'vim'
-knife[:bootstrap_version]     = '$CHEF_BOOTSTRAP'
+knife[:bootstrap_version]     = "$CHEF_VERSION"
 knife[:secret_file]           = "#{chef_dir}/memory.key"
 knife[:aws_access_key_id]     = ENV['AWS_ACCESS_KEY_ID']
 knife[:aws_secret_access_key] = ENV['AWS_SECRET_ACCESS_KEY']

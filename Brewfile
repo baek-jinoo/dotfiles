@@ -1,5 +1,6 @@
 tap 'caskroom/cask'
 brew 'brew-cask'
+tap 'homebrew/bundle'
 
 tap 'homebrew/versions'
 tap 'caskroom/versions'
@@ -20,7 +21,8 @@ brew 'awscli'
 cask 'chefdk'
 
 cask 'dockertoolbox'
-brew 'percona-server'
+brew 'percona-server56'
+
 brew 'redis'
 brew 'imagemagick'
 brew 'ack'
