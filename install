@@ -3,29 +3,67 @@ set -e
 set -o pipefail
 
 RUBY_VERSION=2.1.6
+CHEF_BOOTSTRAP=12.4.9
+CHEF_BUNDLE='~> 12.4.0'
 
+FILE_VAULT=/var/chef/tmp
 USER=$(whoami)
 : ${HOME:="/Users/$USER"}
 
-echo '----> Install xcode command line tools (click "Install")'
-xcode-select --install
+log() {
+  echo "----> $*"
+}
 
-echo '----> Installing Homebrew'
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-brew install rcmdnk/file/brew-file
-brew file set_repo --repo lumoslabs/dotfiles
-brew file install
+if ! xcode-select -p >/dev/null 2>&1; then
+  log 'Install xcode command line tools (click "Install")'
+  xcode-select --install
+fi
 
-echo '----> Installing ruby $RUBY_VERSION'
-rbenv install $RUBY_VERSION
-rbenv global $RUBY_VERSION
+brew_installed=$(brew --version 2>/dev/null)
+case "$brew_installed" in
+  "")
+    log 'Installing Homebrew'
+    /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    ;;
+  *)
+    log 'Updating Homebrew'
+    brew update || true
+    brew upgrade || true
+    ;;
+esac
+
+log 'Install packages with Homebrew Bundler'
+brew tap Homebrew/bundle
+brew bundle
+
+installed_ruby=$(ruby --version | cut -d' ' -f2 | sed 's/p.*//')
+rbenv_global=$(rbenv global 2>/dev/null | sed 's/-.*//')
+if [ "$installed_ruby" != "$rbenv_global" ]; then
+  if [ "$installed_ruby" != "$RUBY_VERSION" ]; then
+    log "Installing ruby $RUBY_VERSION"
+    rbenv install "$RUBY_VERSION"
+  fi
+  log "Setting global ruby to $RUBY_VERSION"
+  rbenv global "$RUBY_VERSION"
+fi
+
+log 'Installing bundler'
 gem install bundler
 rbenv rehash
+tmpfile=$(mktemp)
+cat >"$tmpfile" <<EOF
+source 'https://rubygems.org'
+
+gem 'chef', '$CHEF_BUNDLE'
+EOF
+bundle install --gemfile="$tmpfile"
 
 if [ ! -f "$HOME/.ssh/github-key" ]; then
   echo '----> Create ssh-key'
-  mkdir -v "$HOME/.ssh"
-  chmod 0700 "$HOME/.ssh"
+  if [ ! -d "$HOME/.ssh" ]; then
+    mkdir -v "$HOME/.ssh"
+    chmod 0700 "$HOME/.ssh"
+  fi
   ssh-keygen -t rsa -N '' -f "$HOME/.ssh/github-key" -C "$USER@lumoslabs"
 fi
 
@@ -73,13 +111,13 @@ log_location             STDOUT
 node_name                "$USER"
 role_path                ["#{chef_repo}/roles"]
 trusted_certs_dir        "#{chef_dir}/trusted_certs"
-validation_client_name   "lumoslabs-validator"
+validation_client_name   'lumoslabs-validator'
 validation_key           "#{chef_dir}/validation.pem"
 verify_api_cert          false
 versioned_cookbooks      true
 
 knife[:editor]                = 'vim'
-knife[:bootstrap_version]     = "12.5.1"
+knife[:bootstrap_version]     = '$CHEF_BOOTSTRAP'
 knife[:secret_file]           = "#{chef_dir}/memory.key"
 knife[:aws_access_key_id]     = ENV['AWS_ACCESS_KEY_ID']
 knife[:aws_secret_access_key] = ENV['AWS_SECRET_ACCESS_KEY']
@@ -89,8 +127,12 @@ EOF
 echo '----> Copy chef key files to ~/.chef'
 for file in memory.key validation.pem "$USER.pem"; do
   #TODO: /var/chef may go away, check more places
-  cp /var/chef/tmp/$file $HOME/.chef/
-  rm -fr /var/chef/tmp/$file
+  if [ -f "${FILE_VAULT}/${file}" ]; then
+    cp /var/chef/tmp/$file $HOME/.chef/
+    rm -fr /var/chef/tmp/$file
+  else
+    echo "*** WARNING: Unable to find $file, contact IT!"
+  fi
 done
 
 echo '----> Create chef user'
