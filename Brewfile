@@ -22,7 +22,7 @@ brew 'hub'
 brew 'hubflow'
 cask 'chefdk'
 
-brew 'percona-server'
+brew 'percona-server56'
 brew 'redis'
 brew 'imagemagick'
 brew 'ack'
