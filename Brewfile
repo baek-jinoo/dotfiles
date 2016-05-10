@@ -1,11 +1,6 @@
-before sudo softwareupdate -i -a
-
-update
-upgrade
-
 tap 'caskroom/cask'
 brew 'brew-cask'
-tapall 'rcmdnk/file'
+tap 'homebrew/bundle'
 
 tap 'homebrew/versions'
 tap 'caskroom/versions'
@@ -25,14 +20,12 @@ brew 'wget'
 brew 'awscli'
 brew 'hub'
 brew 'hubflow'
-brew 'chefdk'
+cask 'chefdk'
 
-brew 'percona-server'
+brew 'percona-server56'
 brew 'redis'
 brew 'imagemagick'
 brew 'ack'
 brew 'autoenv'
 brew 'jq'
 brew 'qt'
-
-cleanup
