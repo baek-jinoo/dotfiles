@@ -1,6 +1,7 @@
 #!/bin/bash
 
 IDENTITY_FILE="~/.ssh/${USER}-lumosity-key"
+GITHUB_IDENTITIY_FILE='~/.ssh/github_dsa'
 
 nodes=$(mktemp)
 ssh_config=$(mktemp)
@@ -42,7 +43,7 @@ TCPKeepAlive yes
 # Add github key
 Host github.com
 User git
-IdentityFile $IDENTITY_FILE
+IdentityFile $GITHUB_IDENTITY_FILE
 
 #----------------------------------------------
 # OFFICE SERVERS
@@ -72,6 +73,7 @@ cat $nodes | while read node; do
   add_node_ssh $node
 done
 
+touch ~/.ssh/config_extra
 cat >> $ssh_config < ~/.ssh/config_extra
 
 # echo "[DEBUG] New ssh_config stored in: ${ssh_config}"
