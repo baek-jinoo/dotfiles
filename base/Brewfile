@@ -1,0 +1,11 @@
+tap 'caskroom/cask'
+tap 'homebrew/bundle'
+tap 'homebrew/versions'
+tap 'caskroom/versions'
+tap 'homebrew/services'
+
+brew 'git'
+brew 'rbenv'
+brew 'ruby-build'
+
+cask 'iterm2'
