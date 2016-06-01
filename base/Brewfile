@@ -3,6 +3,7 @@ tap 'homebrew/bundle'
 tap 'homebrew/versions'
 tap 'caskroom/versions'
 tap 'homebrew/services'
+tap 'homebrew/completions'
 
 brew 'git'
 brew 'rbenv'
