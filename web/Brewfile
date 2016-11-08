@@ -18,6 +18,7 @@ brew 'redis'
 brew 'memcached'
 brew 'tmux'
 brew 'sqlite'
+brew 'cmake'
 
 cask 'iterm2'
 cask 'sequel-pro'
